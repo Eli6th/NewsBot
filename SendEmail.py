@@ -3,6 +3,7 @@ import time
 from bs4 import BeautifulSoup
 import datetime
 from nytimesarticle import articleAPI
+from GoogleNews import GoogleNews
 import csv
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -55,7 +56,22 @@ class NewsWebScraper:
                 #if has an article, declare articles have been found
                 if len(self.list_of_articles) > 0:
                     self.hasArticles = True
+            elif self.news_sources[i] == 'GoogleNews':
+                googlenews = GoogleNews()
+                googlenews = GoogleNews(lang='en')
+                googlenews = GoogleNews(start=str(datetime.datetime.now().month - 1) + '/'+ str(datetime.datetime.now().day) + '/'+ str(datetime.datetime.now().year),end=str(datetime.datetime.now().month) + '/'+ str(datetime.datetime.now().day) + '/'+ str(datetime.datetime.now().year))
 
+                self.googleArticles = []
+                for a in range(len(self.keywords)):
+                    googlenews.search(self.keywords[a])
+                    gnews = googlenews.result()
+                    for docs2 in gnews:
+                        self.googleArticles.append(str(docs2.get('title')) + '\n' + str(docs2.get('date')) + '\n' + str(docs2.get('link')) + '\n' + str(docs2.get('desc')))
+                    googlenews.clear()
+                
+                if len(self.googleArticles) > 0:
+                    self.hasArticles = True
+                    
     def email(self):
         #Setting up the email itself: where from, where to, and the subject
         from_address = 'from_email'
@@ -77,6 +93,10 @@ class NewsWebScraper:
                 if self.news_sources[i] == 'NewYorkTimes':
                     body2 = '\n\n These are some news links that we found from The New York Times that you might like on ' + str(self.keywords) + ':\n\n' + str("\n\n".join(self.list_of_articles))
                     msg.attach(MIMEText(body2, 'plain'))
+                #sending email from Google News
+                if self.news_sources[i] == 'GoogleNews':
+                    body3 = '\n\n These are some news links that we found from Google News that you might like on ' + str(self.keywords) + ':\n\n' + str("\n\n".join(self.googleArticles))
+                    msg.attach(MIMEText(body3, 'plain'))
         else:
             #if nothing is found on the subject/keywords on either news network this will be displayed
             body = 'Unfortunately there were no articles from ' + str(self.news_sources) + " discussing " + ', '.join(self.keywords)
@@ -96,7 +116,7 @@ class NewsWebScraper:
 
 #If it's 7 am send email
 if datetime.datetime.now().hour == 7 and datetime.datetime.now().minute == 0 and datetime.datetime.now().second == 0:
-    news_sources = ['NewsYCombinator', 'NewYorkTimes']
+    news_sources = ['NewsYCombinator', 'NewYorkTimes', 'GoogleNews']
     news_keywords = ['Biotech','Python']
     n = NewsWebScraper(news_keywords, news_sources)
     n.parse()
