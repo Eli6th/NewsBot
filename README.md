@@ -10,8 +10,6 @@ pip install smtplib
 
 pip install redis 
 
-pip install time
-
 pip install nytimesarticle
 
 pip install GoogleNews
