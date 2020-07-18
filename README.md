@@ -1,13 +1,21 @@
 # NewsBot
 
 Before using pip install:
+
 pip install requests 
+
 pip install beautiful soup 4
+
 pip install smtplib
+
 pip install redis 
+
 pip install time
+
 pip install nytimesarticle
+
 pip install GoogleNews
+
 
 Automatically sends you an email from newsycombinator, google news, and the new york times at 7 am (time can be adjusted), using the keywords inputted by the user. I would 
 recommend turning off the New York Times email, unless you would like to sign up for their free developer account and get your own API key.
