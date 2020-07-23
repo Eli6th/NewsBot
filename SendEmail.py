@@ -20,6 +20,7 @@ class NewsWebScraper:
         self.hasArticles = False
         self.news_sources = newsSources
         self.markup = []
+        self.read_links = []
         self.keywords = keywords
 
     def parse(self):
@@ -38,16 +39,24 @@ class NewsWebScraper:
                             self.saved_links.append(link)
 
                 #get all of the links and save them, then declare that articles have been found
-                self.read_links = []
                 for a in range(len(self.saved_links)):
                     self.read_links.append(str(self.saved_links[a]['href']))
                     self.hasArticles = True
             elif self.news_sources[i] == 'NewYorkTimes':
                 #To get your api key go to nyt developers website create an account and create an app, then select search api and copy your key from there
-                api = articleAPI('Your API Key')
+                api = articleAPI('API KEY')
                 #loop through all key words to find out whether or not articles have them
                 for a in range(len(self.keywords)):
-                    articles = api.search( q = self.keywords[a], begin_date = datetime.datetime.now().year * 10000 + (datetime.datetime.now().month - 1) * 100 + datetime.datetime.now().day, page=1 )
+                    if (datetime.datetime.now().day - 1 > 0):
+                        articles = api.search( q = self.keywords[a], begin_date = datetime.datetime.now().year * 10000 + (datetime.datetime.now().month) * 100 + (datetime.datetime.now().day - 1), page=1 )
+                    elif (datetime.datetime.now().month - 1 == 4 or datetime.datetime.now().month - 1 == 6 or datetime.datetime.now().month - 1 == 9 or datetime.datetime.now().month - 1 == 11):
+                        articles = api.search( q = self.keywords[a], begin_date = datetime.datetime.now().year * 10000 + (datetime.datetime.now().month-1) * 100 + (datetime.datetime.now().day + 29), page=1 )
+                    elif (datetime.datetime.now().month - 1 == 2 and datetime.datetime.now().year % 4 == 0):
+                        articles = api.search( q = self.keywords[a], begin_date = datetime.datetime.now().year * 10000 + (datetime.datetime.now().month-1) * 100 + (datetime.datetime.now().day + 28), page=1 )
+                    elif (datetime.datetime.now().month - 1 == 2):
+                        articles = api.search( q = self.keywords[a], begin_date = datetime.datetime.now().year * 10000 + (datetime.datetime.now().month-1) * 100 + (datetime.datetime.now().day + 28), page=1 )
+                    else:
+                        articles = api.search( q = self.keywords[a], begin_date = datetime.datetime.now().year * 10000 + (datetime.datetime.now().month-1) * 100 + (datetime.datetime.now().day + 30), page=1 )
                     self.list_of_articles = []
                     for docs in articles['response']['docs']:
                         article_blurbs = {}
@@ -59,25 +68,25 @@ class NewsWebScraper:
             elif self.news_sources[i] == 'GoogleNews':
                 googlenews = GoogleNews()
                 googlenews = GoogleNews(lang='en')
-                googlenews = GoogleNews(start=str(datetime.datetime.now().month - 1) + '/'+ str(datetime.datetime.now().day) + '/'+ str(datetime.datetime.now().year),end=str(datetime.datetime.now().month) + '/'+ str(datetime.datetime.now().day) + '/'+ str(datetime.datetime.now().year))
+                googlenews = GoogleNews(start=str(datetime.datetime.now().month) + '/'+ str(datetime.datetime.now().day - 1) + '/'+ str(datetime.datetime.now().year),end=str(datetime.datetime.now().month) + '/'+ str(datetime.datetime.now().day) + '/'+ str(datetime.datetime.now().year))
 
-                self.googleArticles = []
+                self.googleArticles = [[] for z in range(len(self.keywords))]
                 for a in range(len(self.keywords)):
                     googlenews.search(self.keywords[a])
                     gnews = googlenews.result()
                     for docs2 in gnews:
-                        self.googleArticles.append(str(docs2.get('title')) + '\n' + str(docs2.get('date')) + '\n' + str(docs2.get('link')) + '\n' + str(docs2.get('desc')))
+                        self.googleArticles[a].append(str(docs2.get('title')) + '\n' + str(docs2.get('date')) + '\n' + str(docs2.get('link')) + '\n' + str(docs2.get('desc')))
                     googlenews.clear()
                 
                 if len(self.googleArticles) > 0:
                     self.hasArticles = True
-                    
-    def email(self):
+
+    def email(self, addressNum):
         #Setting up the email itself: where from, where to, and the subject
-        from_address = 'from_email'
-        to_address = 'to_email'
+        from_address = 'from_address'
+        to_address = email_addresses[addressNum]
         msg = MIMEMultipart()
-        msg['From'] = from_address
+        msg['From'] = ', '.join(from_address)
         msg['To'] = to_address
         msg['Subject'] = 'Daily News'
 
@@ -91,11 +100,13 @@ class NewsWebScraper:
                     msg.attach(MIMEText(body, 'plain'))
                 #sending email from nyt
                 if self.news_sources[i] == 'NewYorkTimes':
-                    body2 = '\n\n These are some news links that we found from The New York Times that you might like on ' + str(self.keywords) + ':\n\n' + str("\n\n".join(self.list_of_articles))
+                    body2 = '\n\n These are some news links that we found from The New York Times that you might like on ' + str(self.keywords) + ':\n\n' + str("\n\n".join(self.list_of_articles))                    
                     msg.attach(MIMEText(body2, 'plain'))
                 #sending email from Google News
                 if self.news_sources[i] == 'GoogleNews':
-                    body3 = '\n\n These are some news links that we found from Google News that you might like on ' + str(self.keywords) + ':\n\n' + str("\n\n".join(self.googleArticles))
+                    body3 = '\n\n These are some news links that we found from Google News that you might like on ' + str(self.keywords) + ':' 
+                    for a in range(len(self.keywords)):
+                        body3 += '\n\n' + '--------------------------------' + '\n' + str(self.keywords[a]) + '\n' + '--------------------------------' + '\n\n' + str("\n\n".join(self.googleArticles[a]))
                     msg.attach(MIMEText(body3, 'plain'))
         else:
             #if nothing is found on the subject/keywords on either news network this will be displayed
@@ -103,8 +114,8 @@ class NewsWebScraper:
             msg.attach(MIMEText(body, 'plain'))
 
         #Enter from email and password (also make sure to allow unauthorized third parties to acces the gmail so the script will work. So don't use an important email!)
-        email = "email"
-        password = "password"
+        email = "from_email"
+        password = "from_email_password"
 
         mail = smtplib.SMTP('smtp.gmail.com', 587)
         mail.ehlo()
@@ -114,11 +125,11 @@ class NewsWebScraper:
         mail.sendmail(from_address, to_address, text)
         mail.quit()
 
-#If it's 7 am send email
-if datetime.datetime.now().hour == 7 and datetime.datetime.now().minute == 0 and datetime.datetime.now().second == 0:
-    news_sources = ['NewsYCombinator', 'NewYorkTimes', 'GoogleNews']
-    news_keywords = ['Biotech','Python']
-    n = NewsWebScraper(news_keywords, news_sources)
+news_sources = ['GoogleNews']
+news_keywords = [['Python Projects', 'Python Automation Ideas', 'Tesla', 'Elon Musk', 'Space X', 'AI', 'Machine Learning', 'Coding Projects'],['Python Projects', 'Python Automation Ideas', 'AI', 'Machine Learning', 'Coding Projects', 'NBA', 'NFL', '2020 Election', 'Coronavirus']]    
+email_addresses = ['joes123@gmail.com', 'jerry@gmail.com']
+
+for i in range(len(email_addresses)):
+    n = NewsWebScraper(news_keywords[i], news_sources)
     n.parse()
-    n.email()
-    time.sleep(1)
+    n.email(i)
